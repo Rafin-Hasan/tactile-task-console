@@ -34,11 +34,11 @@ export const setCookie = (res, token, secure) => res.setHeader('Set-Cookie', `${
 export const clearCookie = (res, secure) => res.setHeader('Set-Cookie', `${COOKIE}=; ${flags(secure)}; Max-Age=0`)
 
 export const CODE_MAX = 8
-// Signing in accepts any existing code; creating a vault needs at least `min` digits
-// (longer when the app is reachable from the internet).
+// Codes are `min` to CODE_MAX digits, for creating a vault and for opening one alike
+// (min is longer when the app is reachable from the internet).
 export function readCredentials(body, { register = false, min = 4 } = {}) {
   const code = typeof body.code === 'string' ? body.code : ''
-  if (!new RegExp(`^\\d{${register ? min : 4},${CODE_MAX}}$`).test(code)) return `The code must be ${register ? min : 4}-${CODE_MAX} digits`
+  if (!new RegExp(`^\\d{${min},${CODE_MAX}}$`).test(code)) return `The code must be ${min}-${CODE_MAX} digits`
   const password = typeof body.password === 'string' ? body.password : ''
   if (password.length > 200) return 'Password is too long'
   if (!register) return { code, password }

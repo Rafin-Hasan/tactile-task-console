@@ -56,8 +56,8 @@ export default function Gatekeeper() {
   const isOpen = phase === 'success'
   const busy = phase === 'scanning'
   const joining = mode === 'register'
-  // creating a vault can demand a longer code than opening an existing one
-  const CODE_MIN = joining ? rules.codeMin : 4
+  // one minimum for creating and opening, so both screens ask for the same length
+  const CODE_MIN = rules.codeMin
   const ready = code.length >= CODE_MIN
 
   // key light that trails the cursor

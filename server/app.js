@@ -86,7 +86,7 @@ app.post('/api/auth/register', async (req, res) => {
 })
 
 app.post('/api/auth/login', async (req, res) => {
-  const fields = readCredentials(req.body ?? {})
+  const fields = readCredentials(req.body ?? {}, { min: RULES.codeMin })
   if (typeof fields === 'string') return fail(res, fields)
   const a = await readAuth()
   if (isLocked(a.auth, req.ip)) return res.status(429).json({ error: LOCKED })
