@@ -105,7 +105,7 @@ function setStatus(w, status, now) {
   return null
 }
 
-export function workspaceRoutes(app, { commit, fail, store }) {
+export function workspaceRoutes(app, { commit, fail, dropFiles }) {
   const missing = (res, what) => res.status(404).json({ error: `${what} not found` })
   const depthOf = (ws, id) => {
     let depth = 0
@@ -152,7 +152,7 @@ export function workspaceRoutes(app, { commit, fail, store }) {
       for (const f of ws.folders) if (!gone.has(f.id) && gone.has(f.parentId)) grew = gone.add(f.id) && true
     }
     ws.folders = ws.folders.filter((f) => !gone.has(f.id))
-    store.drop(req.user.id, ws.works.filter((w) => gone.has(w.folderId)))
+    dropFiles(req.user.id, ws.works.filter((w) => gone.has(w.folderId)))
     ws.works = ws.works.filter((w) => !gone.has(w.folderId))
     if (!ws.works.some((w) => w.id === ws.focusId)) ws.focusId = null
     commit(req, res)
@@ -225,7 +225,7 @@ export function workspaceRoutes(app, { commit, fail, store }) {
   app.delete('/api/works/:id', (req, res) => {
     const { ws } = req
     if (!ws.works.some((w) => w.id === req.params.id)) return missing(res, 'Work')
-    store.drop(req.user.id, ws.works.filter((w) => w.id === req.params.id))
+    dropFiles(req.user.id, ws.works.filter((w) => w.id === req.params.id))
     ws.works = ws.works.filter((w) => w.id !== req.params.id)
     if (ws.focusId === req.params.id) ws.focusId = null
     commit(req, res)

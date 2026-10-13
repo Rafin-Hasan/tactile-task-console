@@ -11,7 +11,7 @@ const COPY = {
 const LIMITS = [15, 30, 60, 120]
 
 // Form of the Add section. onSubmit resolves true once the API has saved the item.
-export default function AddPanel({ kind, where, onSubmit, onClose }) {
+export default function AddPanel({ kind, where, maxFileMb, onSubmit, onClose }) {
   const copy = COPY[kind]
   const [text, setText] = useState('')
   const [pri, setPri] = useState('med')
@@ -67,7 +67,7 @@ export default function AddPanel({ kind, where, onSubmit, onClose }) {
         )}
         {kind === 'work' && (
           <div className="field sm:col-span-2">
-            <label htmlFor="add-files">Task files (optional) — the lab sheet or brief, up to 25 MB each</label>
+            <label htmlFor="add-files">Task files (optional) — the lab sheet or brief, up to {maxFileMb} MB each</label>
             <input id="add-files" type="file" multiple onChange={(e) => setFiles([...e.target.files])} />
           </div>
         )}

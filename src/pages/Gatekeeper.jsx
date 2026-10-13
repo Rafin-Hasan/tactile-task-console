@@ -9,8 +9,6 @@ import Page from '../components/Page.jsx'
 import { useConsole } from '../context/console'
 import { burst, TEAL } from '../lib/fx'
 
-const CODE_MIN = 4
-const CODE_MAX = 8
 
 const vault = {
   hidden: { y: 90, opacity: 0, rotateX: 28, scale: 0.94 },
@@ -43,7 +41,8 @@ const panel = {
 }
 
 export default function Gatekeeper() {
-  const { user, login, register, logout, play } = useConsole()
+  const { user, rules, login, register, logout, play } = useConsole()
+  const CODE_MAX = rules.codeMax
   const [mode, setMode] = useState('login')
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
@@ -57,6 +56,8 @@ export default function Gatekeeper() {
   const isOpen = phase === 'success'
   const busy = phase === 'scanning'
   const joining = mode === 'register'
+  // creating a vault can demand a longer code than opening an existing one
+  const CODE_MIN = joining ? rules.codeMin : 4
   const ready = code.length >= CODE_MIN
 
   // key light that trails the cursor

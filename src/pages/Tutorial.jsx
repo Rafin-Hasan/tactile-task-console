@@ -59,7 +59,7 @@ const Sample = ({ children, className = '' }) => (
 const title = 'How the console works'.split(' ')
 
 export default function Tutorial() {
-  const { user } = useConsole()
+  const { user, rules } = useConsole()
   return (
     <Page>
       <div className="sheet overflow-hidden">
@@ -132,7 +132,7 @@ export default function Tutorial() {
             </p>
             <ul className="guide-list">
               <li>
-                <b>New here:</b> choose “Create a vault”, dial a code of 4 to 8 digits and turn the handle. A name and an extra password are optional.
+                <b>New here:</b> choose “Create a vault”, dial a code of {rules.codeMin} to {rules.codeMax} digits and turn the handle. A name and an extra password are optional.
               </li>
               <li>
                 <b>Dialling:</b> drag or scroll the dial and press its centre to set a digit, or simply type the digits.
@@ -225,7 +225,7 @@ export default function Tutorial() {
               <li>
                 <b>Attach files:</b> every work has a paperclip button with two shelves. <b>The task</b> holds what you were asked to do (the lab sheet or brief,
                 e.g. a PDF) and <b>My work</b> holds what you handed in. You can also pick task files while adding the work. Come back any time to open or download
-                them; each file can be up to 25 MB.
+                them; each file can be up to {rules.maxFileMb} MB.
               </li>
               <li>
                 <b>Subfolders</b> go up to five levels deep — Physics → Labs → Term 2, for example.
@@ -419,7 +419,7 @@ export default function Tutorial() {
               <Sample>
                 <span className="chip">
                   <span className="led" aria-hidden="true" />
-                  Synced live
+                  Synced
                 </span>
                 <span className="chip">
                   <span className="led led-off" aria-hidden="true" />
@@ -430,11 +430,11 @@ export default function Tutorial() {
             }
           >
             <p className="guide">
-              There is no save button. Every change is written to your vault the moment you make it and appears in any other tab you have open.
+              There is no save button. Every change is written to your vault the moment you make it and shows up in your other tabs and devices within a few seconds.
             </p>
             <ul className="guide-list">
               <li>
-                <b>Synced live</b> means the change is saved. <b>API offline</b> means the server is not reachable and changes will not be kept.
+                <b>Synced</b> means the change is saved. <b>API offline</b> means the server is not reachable and changes will not be kept.
               </li>
               <li>Clocks are stored as start times, so stopwatches and countdowns stay correct through reloads.</li>
               <li>

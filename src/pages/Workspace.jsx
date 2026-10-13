@@ -55,7 +55,7 @@ function Grid({ id, title, hint, list, children }) {
 
 export default function Workspace() {
   const c = useConsole()
-  const { folders, works, focusId, session, link, user, sound, play } = c
+  const { folders, works, focusId, session, link, user, rules, sound, play } = c
   const [here, setHere] = useState(null)
   const [adding, setAdding] = useState(null)
   const [filter, setFilter] = useState('all')
@@ -206,7 +206,7 @@ export default function Workspace() {
           <motion.div className="flex flex-wrap items-center gap-2.5" initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.8, duration: 0.6 }}>
             <span className="chip mr-1.5" role="status">
               <span className={link === 'live' ? 'led' : 'led led-off'} aria-hidden="true" />
-              {link === 'live' ? 'Synced live' : link === 'offline' ? 'API offline' : 'Connecting'}
+              {link === 'live' ? 'Synced' : link === 'offline' ? 'API offline' : 'Connecting'}
             </span>
             <button
               type="button"
@@ -299,7 +299,7 @@ export default function Workspace() {
                     })}
                   </div>
                   <AnimatePresence initial={false} mode="wait">
-                    {adding && <AddPanel key={`${adding}-${hereId}`} kind={adding} where={where} onSubmit={submitAdd} onClose={() => setAdding(null)} />}
+                    {adding && <AddPanel key={`${adding}-${hereId}`} kind={adding} where={where} maxFileMb={rules.maxFileMb} onSubmit={submitAdd} onClose={() => setAdding(null)} />}
                   </AnimatePresence>
                 </section>
 
@@ -584,7 +584,7 @@ export default function Workspace() {
         </div>
         <div className="tiltshift" style={{ '--ts-blur': '4px', '--ts-top': '7%', '--ts-bot': '90%' }} aria-hidden="true" />
         <ConfirmDialog ask={ask} onClose={() => setAsk(null)} />
-        <FilesDialog work={works.find((w) => w.id === filesFor) ?? null} onUpload={c.uploadFile} onDelete={c.deleteFile} onClose={() => setFilesFor(null)} />
+        <FilesDialog maxMb={rules.maxFileMb} work={works.find((w) => w.id === filesFor) ?? null} onUpload={c.uploadFile} onDelete={c.deleteFile} onClose={() => setFilesFor(null)} />
       </div>
     </Page>
   )

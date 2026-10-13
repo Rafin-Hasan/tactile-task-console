@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from 'react'
 import { api } from '../lib/api'
 import { NoteIcon, PaperclipIcon, TrashIcon } from './Icons.jsx'
 
-export const MAX_FILE_MB = 25
 const SHELVES = [
   { role: 'task', title: 'The task', note: 'What you were asked to do: the lab sheet, brief or question paper.', empty: 'No task file yet' },
   { role: 'work', title: 'My work', note: 'What you handed in: your report, code, results or photos.', empty: 'Nothing added yet' },
@@ -15,7 +14,7 @@ function sizeText(bytes) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
-function Shelf({ work, shelf, onUpload, onDelete }) {
+function Shelf({ work, shelf, maxMb, onUpload, onDelete }) {
   const input = useRef(null)
   const [busy, setBusy] = useState(0)
   const [over, setOver] = useState(false)
@@ -26,8 +25,8 @@ function Shelf({ work, shelf, onUpload, onDelete }) {
   const add = async (list) => {
     setProblem('')
     const picked = [...list]
-    const tooBig = picked.filter((f) => f.size > MAX_FILE_MB * 1024 * 1024)
-    if (tooBig.length) setProblem(`${tooBig.map((f) => f.name).join(', ')} ${tooBig.length > 1 ? 'are' : 'is'} over the ${MAX_FILE_MB} MB limit`)
+    const tooBig = picked.filter((f) => f.size > maxMb * 1024 * 1024)
+    if (tooBig.length) setProblem(`${tooBig.map((f) => f.name).join(', ')} ${tooBig.length > 1 ? 'are' : 'is'} over the ${maxMb} MB limit`)
     for (const file of picked.filter((f) => !tooBig.includes(f))) {
       setBusy((n) => n + 1)
       await onUpload(work.id, shelf.role, file)
@@ -113,7 +112,7 @@ function Shelf({ work, shelf, onUpload, onDelete }) {
 }
 
 // A work's two shelves of attachments: what was asked, and what was handed in.
-export default function FilesDialog({ work, onUpload, onDelete, onClose }) {
+export default function FilesDialog({ work, maxMb, onUpload, onDelete, onClose }) {
   const ref = useRef(null)
 
   useEffect(() => {
@@ -139,10 +138,10 @@ export default function FilesDialog({ work, onUpload, onDelete, onClose }) {
           </div>
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
             {SHELVES.map((shelf) => (
-              <Shelf key={shelf.role} work={work} shelf={shelf} onUpload={onUpload} onDelete={onDelete} />
+              <Shelf key={shelf.role} work={work} shelf={shelf} maxMb={maxMb} onUpload={onUpload} onDelete={onDelete} />
             ))}
           </div>
-          <p className="muted">PDFs, images and text open in a new tab; other files download. Up to {MAX_FILE_MB} MB each.</p>
+          <p className="muted">PDFs, images and text open in a new tab; other files download. Up to {maxMb} MB each.</p>
         </div>
       )}
     </dialog>

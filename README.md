@@ -30,7 +30,17 @@ This starts the API on port 3001 and the web app on port 5173. Open http://local
 
 ## Where your data lives
 
-Everything is stored locally in `api/data/` (ignored by git): `db.json` for accounts and workspaces, `secret.key` for hashing vault codes, and `files/` for attachments. Back that folder up if the contents matter.
+**On your own machine** everything is stored in `api/data/` (ignored by git): `auth.json` for accounts, `ws/` for one workspace file per account, `secret.key` for hashing vault codes, and `files/` for attachments. Back that folder up if the contents matter.
+
+**Hosted** (when a `DATABASE_URL` is set) the same data lives in two Postgres tables, `docs` and `files`, which the server creates on first use.
+
+## Deploy to Vercel
+
+1. Import the repository in Vercel. `vercel.json` already routes `/api/*` to the Express app in `api/index.js` and everything else to the React app.
+2. Add a Postgres database from the Vercel Marketplace (Neon has a free plan) and connect it to the project, so `DATABASE_URL` is set.
+3. Redeploy.
+
+Differences when hosted: new vault codes need at least 6 digits, attachments are limited to 4 MB each, and other tabs or devices pick up changes within a few seconds instead of instantly. Local data is not uploaded; the hosted app starts empty.
 
 ## Security notes
 
@@ -39,12 +49,13 @@ This is a local, single-machine app, not a hosted service.
 - A short numeric code is weak protection: anyone who guesses a code opens that vault. Wrong guesses are rate-limited, and the extra password adds a second lock.
 - Codes and passwords are stored only as hashes.
 - There is no code or password recovery.
-- It serves plain HTTP. Put it behind HTTPS before exposing it to a network.
+- Run locally it serves plain HTTP; on Vercel it is HTTPS.
 
 ## Project layout
 
 ```
-api/            Express API: auth, folders/works, clocks, file storage
+server/         Express API: auth, folders/works, clocks, files, storage drivers
+api/index.js    Vercel entry point for the API
 src/pages/      Gatekeeper (vault), Workspace, Focus, Tutorial
 src/components/ Dial, work cards, dialogs, shared pieces
 src/lib/        API client, time and data helpers, sound

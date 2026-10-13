@@ -1,31 +1,11 @@
 import express from 'express'
 import { randomUUID } from 'node:crypto'
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
 
-export const MAX_FILE_MB = 25
 const MAX_FILES_PER_WORK = 30
 const ROLES = ['task', 'work']
 // Only these are shown inside the browser; anything else is always downloaded, so an
 // uploaded HTML or script file can never run on this site.
 const INLINE = ['application/pdf', 'image/png', 'image/jpeg', 'image/gif', 'image/webp', 'text/plain']
-
-// Attachments live on disk under data/files/<account>/<file id>; the name a person gave the
-// file is only ever metadata, never part of a path.
-export function fileStore(dataDir) {
-  const dirFor = (userId) => join(dataDir, 'files', userId)
-  return {
-    pathFor: (userId, fileId) => join(dirFor(userId), fileId),
-    save(userId, fileId, bytes) {
-      mkdirSync(dirFor(userId), { recursive: true })
-      writeFileSync(join(dirFor(userId), fileId), bytes)
-    },
-    // remove the stored files of deleted works
-    drop(userId, works) {
-      for (const w of works) for (const f of w.files ?? []) rmSync(join(dirFor(userId), f.id), { force: true })
-    },
-  }
-}
 
 const header = (req, name) => {
   try {
@@ -35,7 +15,9 @@ const header = (req, name) => {
   }
 }
 
-export function fileRoutes(app, { commit, fail, store }) {
+// Attachments are stored under files/<account>/<file id>; the name a person gave the file
+// is only ever metadata, never part of a storage key.
+export function fileRoutes(app, { commit, fail, storage, fileKey }) {
   const find = (req, res) => {
     const work = req.ws.works.find((w) => w.id === req.params.id)
     if (!work) res.status(404).json({ error: 'Work not found' })
@@ -43,7 +25,7 @@ export function fileRoutes(app, { commit, fail, store }) {
   }
 
   // The file travels as the raw request body; its name, type and role come in headers.
-  app.post('/api/works/:id/files', express.raw({ type: () => true, limit: `${MAX_FILE_MB}mb` }), (req, res) => {
+  app.post('/api/works/:id/files', express.raw({ type: () => true, limit: `${storage.maxFileMb}mb` }), async (req, res) => {
     const work = find(req, res)
     if (!work) return
     const role = header(req, 'X-File-Role')
@@ -63,16 +45,18 @@ export function fileRoutes(app, { commit, fail, store }) {
       role,
       addedAt: new Date().toISOString(),
     }
-    store.save(req.user.id, file.id, req.body)
+    await storage.putFile(fileKey(req.user.id, file.id), req.body)
     work.files.push(file)
     commit(req, res, 201)
   })
 
-  app.get('/api/works/:id/files/:fileId', (req, res) => {
+  app.get('/api/works/:id/files/:fileId', async (req, res) => {
     const work = find(req, res)
     if (!work) return
     const file = (work.files ?? []).find((f) => f.id === req.params.fileId)
     if (!file) return res.status(404).json({ error: 'File not found' })
+    const bytes = await storage.getFile(fileKey(req.user.id, file.id))
+    if (!bytes) return res.status(404).json({ error: 'The stored file is missing' })
     const inline = INLINE.includes(file.type) && req.query.download === undefined
     res.set({
       'Content-Type': inline ? file.type : 'application/octet-stream',
@@ -82,24 +66,16 @@ export function fileRoutes(app, { commit, fail, store }) {
     })
     // the browser's PDF viewer refuses to run inside a sandbox, so PDFs are exempt
     if (file.type !== 'application/pdf') res.set('Content-Security-Policy', "sandbox; default-src 'none'")
-    res.sendFile(store.pathFor(req.user.id, file.id), (err) => {
-      if (err && !res.headersSent) res.status(404).json({ error: 'The stored file is missing' })
-    })
+    res.end(bytes)
   })
 
-  app.delete('/api/works/:id/files/:fileId', (req, res) => {
+  app.delete('/api/works/:id/files/:fileId', async (req, res) => {
     const work = find(req, res)
     if (!work) return
     const file = (work.files ?? []).find((f) => f.id === req.params.fileId)
     if (!file) return res.status(404).json({ error: 'File not found' })
-    store.drop(req.user.id, [{ files: [file] }])
+    await storage.removeFiles([fileKey(req.user.id, file.id)])
     work.files = work.files.filter((f) => f.id !== file.id)
     commit(req, res)
-  })
-
-  // an upload over the limit lands here instead of crashing the request
-  app.use('/api/works/:id/files', (err, _req, res, next) => {
-    if (err?.type === 'entity.too.large') return res.status(413).json({ error: `That file is over the ${MAX_FILE_MB} MB limit` })
-    next(err)
   })
 }

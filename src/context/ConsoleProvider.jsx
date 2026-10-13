@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../lib/api'
 import { sfx } from '../lib/sfx'
 import { ConsoleContext } from './console'
 
 const EMPTY = { folders: [], works: [], focusId: null, session: { minutes: 25, running: false, startedAt: null, accumulated: 0 } }
+const POLL_MS = 6000
 const patchById = (list, id, patch) => list.map((x) => (x.id === id ? { ...x, ...patch } : x))
 
 export default function ConsoleProvider({ children }) {
@@ -15,25 +16,49 @@ export default function ConsoleProvider({ children }) {
   const [error, setError] = useState(null)
   const [sound, setSound] = useState(false)
 
+  // limits the server enforces (they differ between your own machine and the hosted app)
+  const [rules, setRules] = useState({ codeMin: 4, codeMax: 8, maxFileMb: 25 })
+  const busy = useRef(0)
+
   useEffect(() => {
     api
       .me()
-      .then((r) => setUser(r.user))
+      .then((r) => {
+        setRules(r.rules)
+        setUser(r.user)
+      })
       .catch(() => setUser(null))
   }, [])
 
-  // The server pushes the full workspace on connect and after every change, from any tab.
+  // Changes made in another tab or device arrive by re-reading the workspace every few
+  // seconds while this tab is visible, and at once when it regains focus.
   const userId = user?.id
   useEffect(() => {
     if (!userId) return
-    const stream = new EventSource('/api/events')
-    stream.addEventListener('state', (e) => {
-      setState(JSON.parse(e.data))
-      setLink('live')
-    })
-    stream.onerror = () => setLink('offline')
+    let stopped = false
+    const pull = async () => {
+      // skip while one of our own saves is in flight, so a stale read cannot overwrite it
+      if (document.hidden || busy.current) return
+      try {
+        const next = await api.state()
+        if (stopped || busy.current) return
+        setState((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
+        setLink('live')
+      } catch (err) {
+        if (stopped) return
+        if (err.status === 401) setUser(null)
+        else setLink('offline')
+      }
+    }
+    pull()
+    const timer = setInterval(pull, POLL_MS)
+    window.addEventListener('focus', pull)
+    document.addEventListener('visibilitychange', pull)
     return () => {
-      stream.close()
+      stopped = true
+      clearInterval(timer)
+      window.removeEventListener('focus', pull)
+      document.removeEventListener('visibilitychange', pull)
       setState(EMPTY)
       setLink('connecting')
     }
@@ -49,9 +74,11 @@ export default function ConsoleProvider({ children }) {
   // Apply the change locally right away, then let the server's answer settle it.
   const send = useCallback(async (optimistic, request) => {
     if (optimistic) setState(optimistic)
+    busy.current++
     try {
       setState(await request())
       setError(null)
+      setLink('live')
       return true
     } catch (err) {
       if (err.status === 401) setUser(null)
@@ -59,13 +86,17 @@ export default function ConsoleProvider({ children }) {
       // drop the optimistic guess and show what is really saved
       if (optimistic) api.state().then(setState, () => {})
       return false
+    } finally {
+      busy.current--
     }
   }, [])
 
   // sign-in calls resolve to null on success, or { message, needsPassword }
   const auth = useCallback(async (request) => {
     try {
-      setUser((await request()).user)
+      const reply = await request()
+      setRules(reply.rules)
+      setUser(reply.user)
       setError(null)
       return null
     } catch (err) {
@@ -104,8 +135,8 @@ export default function ConsoleProvider({ children }) {
   )
 
   const value = useMemo(
-    () => ({ ...state, ...actions, user, link, error, sound, setSound, play }),
-    [state, actions, user, link, error, sound, play],
+    () => ({ ...state, ...actions, user, rules, link, error, sound, setSound, play }),
+    [state, actions, user, rules, link, error, sound, play],
   )
   return <ConsoleContext.Provider value={value}>{children}</ConsoleContext.Provider>
 }
